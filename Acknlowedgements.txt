@@ -1,2 +1,0 @@
-Should we vectorize just the question header, or also its answer
-make sure to append user input to previous messages
