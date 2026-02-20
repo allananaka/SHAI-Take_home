@@ -58,7 +58,8 @@ def chat(req: ChatRequest):
             answer=answer,
             sources=sources,
             memory_used=True,
-            history=history
+            history=history,
+            memory_used=True
         )
     else:
         # Handle the case where no relevant FAQ was found
@@ -69,5 +70,6 @@ def chat(req: ChatRequest):
             answer=no_answer_response,
             sources=[],
             memory_used=False,
-            history=history
+            history=history,
+            memory_used=False
         )
