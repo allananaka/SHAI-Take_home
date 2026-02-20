@@ -1,0 +1,6 @@
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install "fastapi[all]"
+pip install requests
+pip install scikit-learn
+uvicorn app.main:app --reload

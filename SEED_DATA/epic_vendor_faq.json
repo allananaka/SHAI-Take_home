@@ -1,0 +1,26 @@
+[
+ {
+    "id": "faq_1",
+    "section": "General",
+    "question": "What is Vendor Services?",
+    "answer": "Vendor Services is a support program offered by Epic to developers who are looking to integrate their product with Epic software.\n\nMembership to Vendor Services provides access to the following:\n\n- Interface technologies, specifications, and documentation to enable close workflow and data connections with Epic software\n- Single sign-on options for embedding, launching, and signing into web-based applications using SMART on FHIR (OAuth 2.0)\n- Standards-based APIs such as Fast Healthcare Interoperability Resources (FHIR) and CDS Hooks\n- Standards-based interfaces such as ASC X12 and HL7 v2\n- Epic-specific APIs and web services, where standards may not yet be supported\n- Kit, which enables apps to connect to health systems' reporting databases to access clinical, operational, and financial data\n- Import specifications\n- Tutorials and developer forums to learn and stay up to date on best practices for interfacing with Epic\n- Sandboxes, client test harnesses, and example data to help developers test\n- Expert design consultation and technical assistance to help get your app ready for use by healthcare organizations or patients\n- Install assistance and other tools to streamline deployment"
+},
+{
+    "id": "faq_2",
+    "section": "General",
+    "question": "Who uses the Vendor Services website?",
+    "answer": "Developers enrolled in Vendor Services use the website to receive access to test harnesses, testing sandboxes, and tutorials.\n\nThe Vendor Services website also enables Epic's customers who are interested in creating homegrown applications and interfacing those apps with their Epic software."
+},
+{
+    "id": "faq_3",
+    "section": "General",
+    "question": "What is open.epic?",
+    "answer": "open.epic is a free online self-service resource for developers and others who wish to learn how Epic interoperates.\n\nYou can use the open.epic interoperability guide to get connected to the right interoperability resources for your needs. You can also explore documentation on how Epic has implemented standards-based APIs and interfaces (e.g., ASC X12, HL7 FHIR, HL7 v2, NCPDP, and more) and certain publicly available Epic-specific APIs.\n\nAdditionally, through open.epic, you may test your FHIR-based interfaces in our self-service sandbox and obtain client IDs and health systems' FHIR endpoints.\n\nIf you're interested in direct support from Epic to design, test, deploy, maintain, or support an integration between your products and Epic software, then Vendor Services is the right resource for you!"
+},
+{
+    "id": "faq_4",
+    "section": "General",
+    "question": "What is Epic on FHIR?",
+    "answer": "Epic on FHIR is the FHIR toolbox section of open.epic, Epic’s free online self-service interoperability resource.\n\nThrough Epic on FHIR, you can find documentation on how Epic has implemented the HL7 FHIR standard, test your FHIR-based interfaces in the self-service sandbox, and obtain client IDs and health systems' FHIR endpoints.\n\nIf you're interested in receiving direct support from Epic to design, test, deploy, maintain, and support an integration between your products and Epic software, then Vendor Services is the right resource for you!"
+}
+]
