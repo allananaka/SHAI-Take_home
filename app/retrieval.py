@@ -12,9 +12,11 @@ class FAQRetriever:
         Initializes the retriever, fits the TF-IDF vectorizer, and stores the data.
         """
         self.faq_data = faq_data
-        self.questions = [faq.get("question", "") for faq in self.faq_data]
+        # Combine question and answer for a richer document representation.
+        self.documents = [f"{faq.get('question', '')}\n{faq.get('answer', '')}" for faq in self.faq_data]
+
         self.vectorizer = TfidfVectorizer(stop_words='english')
-        self.tfidf_matrix = self.vectorizer.fit_transform(self.questions)
+        self.tfidf_matrix = self.vectorizer.fit_transform(self.documents)
 
     def find_best_match(self, query: str) -> Optional[Dict]:
         """

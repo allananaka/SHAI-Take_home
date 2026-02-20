@@ -16,11 +16,13 @@ app = FastAPI()
 
 class ChatRequest(BaseModel):
     message: str
+    history: list[dict] = []
 
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str]
     memory_used: bool
+    history: list[dict]
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
@@ -28,8 +30,13 @@ def chat(req: ChatRequest):
     user_message = req.message
 
     # 2. retrieve relevant FAQ using the pre-computed retriever instance
+    # We use ONLY the most recent user_message for retrieval to get the best factual match.
     relevant_faq = retriever.find_best_match(user_message)
     
+    # Prepare for conversation history
+    history = req.history
+    history.append({"role": "user", "content": user_message})
+
     if relevant_faq:
         faq_question = relevant_faq.get("question", "No question found.")
         faq_detailed_answer = relevant_faq.get("answer", "No detailed answer found.")
@@ -40,16 +47,27 @@ def chat(req: ChatRequest):
         # 4. Update sources with the FAQ ID
         sources = [f"{faq_question} (ID: {relevant_faq.get('id', 'Unknown ID')})"]
 
-        # 5. Return the formatted response
+        # THIS IS WHERE YOUR FUTURE LLM CALL WOULD GO
+        # You would pass the `history` and the `faq_detailed_answer` to the LLM.
+        # For now, we use the formatted answer directly.
+        
+        history.append({"role": "assistant", "content": answer})
+
+        # 5. Return the response, including the updated history
         return ChatResponse(
             answer=answer,
             sources=sources,
-            memory_used=True
+            memory_used=True,
+            history=history
         )
     else:
         # Handle the case where no relevant FAQ was found
+        no_answer_response = "I'm sorry, I couldn't find a relevant answer in my knowledge base. Please try rephrasing your question."
+        history.append({"role": "assistant", "content": no_answer_response})
+
         return ChatResponse(
-            answer="I'm sorry, I couldn't find a relevant answer in my knowledge base. Please try rephrasing your question.",
+            answer=no_answer_response,
             sources=[],
-            memory_used=False
+            memory_used=False,
+            history=history
         )
