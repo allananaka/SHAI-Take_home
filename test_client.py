@@ -37,3 +37,6 @@ if __name__ == "__main__":
 
     print("\n--- Turn 3 (New Topic) ---")
     conversation_history = send_chat_message("Tell me about FHIR", history=conversation_history)
+    
+    print("\n--- Turn 4 (Invalid Input) ---")
+    conversation_history = send_chat_message("fj wefjw e fef", history=conversation_history)

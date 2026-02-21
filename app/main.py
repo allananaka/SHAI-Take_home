@@ -2,12 +2,16 @@ from fastapi import FastAPI
 import json
 import os
 from dotenv import load_dotenv
-from .retrieval import FAQRetriever
-from .models import ChatRequest, ChatResponse
-from .response import build_messages, call_llm, rewrite_query
+from typing import List, Dict
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Load environment variables from a .env file
 load_dotenv()
+
+from .retrieval import FAQRetriever
+from .models import ChatRequest, ChatResponse
+from .response import build_messages, call_llm, rewrite_query
 
 # Load the FAQ data from the JSON file
 FAQ_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "SEED_DATA", "epic_vendor_faq.json")
@@ -19,53 +23,104 @@ retriever = FAQRetriever(faq_data)
 
 app = FastAPI()
 
+def is_follow_up_question(user_input: str, history: List[Dict], threshold: float = 0.2) -> bool:
+    """
+    Checks if the user input is a semantic follow-up to the conversation history.
+
+    This function uses TF-IDF to vectorize the user's input and the entire
+    conversation history. It then calculates the cosine similarity between them.
+
+    Args:
+        user_input: The user's latest message.
+        history: A list of previous messages in the conversation (user and bot).
+        threshold: The similarity score above which the input is considered a follow-up.
+                   This value may require tuning based on observed performance.
+
+    Returns:
+        True if the similarity score is above the threshold, False otherwise.
+    """
+    # If there's no history, it cannot be a follow-up.
+    if not history:
+        return False
+
+    # Join the list of historical messages into a single string.
+    history_text = " ".join([msg.get("content", "") for msg in history])
+
+    # Create a TF-IDF Vectorizer.
+    vectorizer = TfidfVectorizer()
+
+    # Generate TF-IDF vectors for the history and the new user input.
+    # The fit_transform method creates a vocabulary and transforms the texts in one step.
+    try:
+        tfidf_matrix = vectorizer.fit_transform([history_text, user_input])
+    except ValueError:
+        # This can happen if the vocabulary is empty (e.g., all stop words).
+        return False
+
+    # Calculate the cosine similarity between the history vector and the input vector.
+    # The result is a 2x2 matrix; the value at [0, 1] is the one we need.
+    similarity_score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+
+    # Return True if the similarity score exceeds our defined threshold.
+    return similarity_score > threshold
+
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest):
-    # 1. receive user input
+def chat(req: ChatRequest) -> ChatResponse:
     user_message = req.message
+    history = req.history
+    memory_used = bool(history)
+    
+    # Determine if the input is a follow-up before doing anything else.
+    is_follow_up = is_follow_up_question(user_message, history)
 
-    # 2. Rewrite the query to include context from history (e.g., "Who is it for?" -> "Who is Vendor Services for?")
-    search_query = rewrite_query(user_message, req.history)
+    history.append({"role": "user", "content": user_message})
 
-    # 3. Retrieve relevant FAQ using the rewritten query
+    if is_follow_up:
+        # If it's a follow-up, rewrite it to be a standalone query for better searching.
+        search_query = rewrite_query(user_message, history[:-1])
+        history.append({"role": "Edited user", "content": search_query})
+    else:
+        # If it's a new topic, use the message directly. No rewrite needed.
+        search_query = user_message
+        history.append({"role": "Edited user", "content": "No rewrite needed"})
+
+    # Now, retrieve the FAQ using the determined search_query.
     relevant_faq = retriever.find_best_match(search_query)
     
-    # Prepare for conversation history
-    history = req.history
-    history.append({"role": "user", "content": user_message})
-    history.append({"role": "Edited user", "content": search_query})
+    answer = ""
+    sources = []
 
     if relevant_faq:
+        # --- Case 1: A relevant FAQ was found. ---
         faq_question = relevant_faq.get("question", "No question found.")
-        faq_detailed_answer = relevant_faq.get("answer", "No detailed answer found.")
-
-        # 3. Format the answer using information from the FAQ
-        answer = f"{faq_question}\n\n{faq_detailed_answer}"
-
-        history.append({"role": "Matched FAQ", "content": answer})
-        
-        # 4. Update sources with the FAQ ID
+        history.append({"role": "Matched FAQ", "content": f"Found: {faq_question}"})
         sources = [f"{faq_question} (ID: {relevant_faq.get('id', 'Unknown ID')})"]
+        
+        # Generate a conversational answer using the LLM with the FAQ as context.
+        messages = build_messages(user_message, relevant_faq, history)
+        answer = call_llm(messages)
     else:
-        # Handle the case where no relevant FAQ was found
+        # --- Case 2: No relevant FAQ was found. ---
         history.append({"role": "Matched FAQ", "content": "No relevant FAQ found."})
-        sources = []
-        relevant_faq = {}
-    
-    # 5. Generate the response using the LLM, providing the FAQ content as context
-    messages = build_messages(user_message, relevant_faq, history)
-    answer = call_llm(messages)
+        
+        if is_follow_up:
+            # It seemed like a follow-up, but didn't match an FAQ.
+            # Let the LLM try to answer using only the conversation history.
+            messages = build_messages(user_message, {}, history) # Pass empty FAQ dict
+            answer = call_llm(messages)
+        else:
+            # It was a new topic that we don't have an FAQ for. Return a clarifying message.
+            answer = "I'm sorry, I'm not sure how to help with that. Could you please rephrase your question or ask about a new topic?"
     
     history.append({"role": "assistant", "content": answer})
 
-    # Limit history to the last 5 turns (15 messages) to prevent context overflow (each turn has 3 messages: user, matched FAQ, assistant)
+    # Limit history to prevent context overflow.
     if len(history) > 20:
         history = history[-20:]
 
-    # 5. Return the response, including the updated history
     return ChatResponse(
         answer=answer,
         sources=sources,
-        memory_used=True,
+        memory_used=memory_used,
         history=history
     )
