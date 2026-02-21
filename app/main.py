@@ -43,6 +43,17 @@ def is_follow_up_question(user_input: str, history: List[Dict], threshold: float
     if not history:
         return False
 
+    # --- New Heuristic ---
+    # Short inputs with pronouns are very likely follow-ups. This handles cases
+    # like "Who is it for?"
+    words = user_input.lower().split()
+    # A set of common pronouns and context-dependent words
+    contextual_words = {'it', 'they', 'them', 'that', 'those', 'this', 'his', 'her', 'their'}
+    # Check if the sentence is short and contains any of these words.
+    if len(words) <= 6 and any(word.strip(".,?!") in contextual_words for word in words):
+        return True
+    # --- End Heuristic ---
+
     # Join the list of historical messages into a single string.
     history_text = " ".join([msg.get("content", "") for msg in history])
 
@@ -103,14 +114,8 @@ def chat(req: ChatRequest) -> ChatResponse:
         # --- Case 2: No relevant FAQ was found. ---
         history.append({"role": "Matched FAQ", "content": "No relevant FAQ found."})
         
-        if is_follow_up:
-            # It seemed like a follow-up, but didn't match an FAQ.
-            # Let the LLM try to answer using only the conversation history.
-            messages = build_messages(user_message, {}, history) # Pass empty FAQ dict
-            answer = call_llm(messages)
-        else:
-            # It was a new topic that we don't have an FAQ for. Return a clarifying message.
-            answer = "I'm sorry, I'm not sure how to help with that. Could you please rephrase your question or ask about a new topic?"
+        # Fallback for when no FAQ is found
+        answer = "I'm sorry, I'm not sure how to help with that. Could you please rephrase your question or ask about a new topic?"
     
     history.append({"role": "assistant", "content": answer})
 
