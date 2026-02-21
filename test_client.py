@@ -19,10 +19,8 @@ def send_chat_message(message: str, history: list = []):
         print("Success! Server responded with:")
         print(json.dumps(response_data, indent=2))
         
-        # Manually update local history since server doesn't return it anymore
-        history.append({"role": "user", "content": message})
-        history.append({"role": "assistant", "content": response_data["answer"]})
-        return history
+        # Update local history with the full history returned by the server
+        return response_data["history"]
     else:
         print(f"Error: Received status code {response.status_code}")
         print("Response body:", response.text)

@@ -12,11 +12,16 @@ class FAQRetriever:
         Initializes the retriever, fits the TF-IDF vectorizer, and stores the data.
         """
         self.faq_data = faq_data
-        # Combine question and answer for a richer document representation.
-        self.documents = [f"{faq.get('question', '')}\n{faq.get('answer', '')}" for faq in self.faq_data]
 
-        self.vectorizer = TfidfVectorizer(stop_words='english')
-        self.tfidf_matrix = self.vectorizer.fit_transform(self.documents)
+        # 1. Vectorizer for Questions (High priority)
+        self.questions = [faq.get('question', '') for faq in self.faq_data]
+        self.question_vectorizer = TfidfVectorizer(stop_words='english')
+        self.question_matrix = self.question_vectorizer.fit_transform(self.questions)
+
+        # 2. Vectorizer for Answers (Fallback)
+        self.answers = [faq.get('answer', '') for faq in self.faq_data]
+        self.answer_vectorizer = TfidfVectorizer(stop_words='english')
+        self.answer_matrix = self.answer_vectorizer.fit_transform(self.answers)
 
     def find_best_match(self, query: str) -> Optional[Dict]:
         """
@@ -32,17 +37,24 @@ class FAQRetriever:
         if not self.faq_data:
             return None
 
-        # Transform the user query using the pre-fitted vectorizer
-        query_vector = self.vectorizer.transform([query])
+        # Step 1: Search Questions
+        q_vector = self.question_vectorizer.transform([query])
+        q_similarities = cosine_similarity(q_vector, self.question_matrix).flatten()
+        best_q_index = q_similarities.argmax()
+        max_q_sim = q_similarities[best_q_index]
 
-        # Calculate cosine similarity
-        cosine_similarities = cosine_similarity(query_vector, self.tfidf_matrix).flatten()
+        # Threshold for questions (higher confidence required for title match)
+        if max_q_sim > 0.3:
+            return self.faq_data[best_q_index]
 
-        best_match_index = cosine_similarities.argmax()
-        max_similarity = cosine_similarities[best_match_index]
+        # Step 2: Search Answers (Fallback)
+        a_vector = self.answer_vectorizer.transform([query])
+        a_similarities = cosine_similarity(a_vector, self.answer_matrix).flatten()
+        best_a_index = a_similarities.argmax()
+        max_a_sim = a_similarities[best_a_index]
 
-        similarity_threshold = 0.1
-        if max_similarity > similarity_threshold:
-            return self.faq_data[best_match_index]
-        else:
-            return None
+        # Threshold for answers (can be lower as it's a broader search)
+        if max_a_sim > 0.1:
+            return self.faq_data[best_a_index]
+        
+        return None
