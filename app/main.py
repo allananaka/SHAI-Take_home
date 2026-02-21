@@ -1,10 +1,8 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 import json
 import os
 from dotenv import load_dotenv
-from typing import List, Dict
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
 # Load environment variables from a .env file
 load_dotenv()
@@ -12,6 +10,7 @@ load_dotenv()
 from .retrieval import FAQRetriever
 from .models import ChatRequest, ChatResponse
 from .response import build_messages, call_llm, rewrite_query
+from .utils import is_follow_up_question
 
 # Load the FAQ data from the JSON file
 FAQ_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "SEED_DATA", "epic_vendor_faq.json")
@@ -21,74 +20,35 @@ with open(FAQ_FILE_PATH, 'r') as f:
 # Create a single, pre-computed retriever instance when the app starts.
 retriever = FAQRetriever(faq_data)
 
+# Define a constant for the maximum history length
+MAX_HISTORY_LENGTH = 20
+
 app = FastAPI()
-
-def is_follow_up_question(user_input: str, history: List[Dict], threshold: float = 0.2) -> bool:
-    """
-    Checks if the user input is a semantic follow-up to the conversation history.
-
-    This function uses TF-IDF to vectorize the user's input and the entire
-    conversation history. It then calculates the cosine similarity between them.
-
-    Args:
-        user_input: The user's latest message.
-        history: A list of previous messages in the conversation (user and bot).
-        threshold: The similarity score above which the input is considered a follow-up.
-                   This value may require tuning based on observed performance.
-
-    Returns:
-        True if the similarity score is above the threshold, False otherwise.
-    """
-    # If there's no history, it cannot be a follow-up.
-    if not history:
-        return False
-
-    # --- New Heuristic ---
-    # Short inputs with pronouns are very likely follow-ups. This handles cases
-    # like "Who is it for?"
-    words = user_input.lower().split()
-    # A set of common pronouns and context-dependent words
-    contextual_words = {'it', 'they', 'them', 'that', 'those', 'this', 'his', 'her', 'their'}
-    # Check if the sentence is short and contains any of these words.
-    if len(words) <= 6 and any(word.strip(".,?!") in contextual_words for word in words):
-        return True
-    # --- End Heuristic ---
-
-    # Join the list of historical messages into a single string.
-    history_text = " ".join([msg.get("content", "") for msg in history])
-
-    # Create a TF-IDF Vectorizer.
-    vectorizer = TfidfVectorizer()
-
-    # Generate TF-IDF vectors for the history and the new user input.
-    # The fit_transform method creates a vocabulary and transforms the texts in one step.
-    try:
-        tfidf_matrix = vectorizer.fit_transform([history_text, user_input])
-    except ValueError:
-        # This can happen if the vocabulary is empty (e.g., all stop words).
-        return False
-
-    # Calculate the cosine similarity between the history vector and the input vector.
-    # The result is a 2x2 matrix; the value at [0, 1] is the one we need.
-    similarity_score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-
-    # Return True if the similarity score exceeds our defined threshold.
-    return similarity_score > threshold
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
+    # Extract the user's message and conversation history from the request
     user_message = req.message
     history = req.history
     memory_used = bool(history)
     
     # Determine if the input is a follow-up before doing anything else.
     is_follow_up = is_follow_up_question(user_message, history)
+    
+    # If it is not a follow-up, we treat it as a new conversation, so memory is not used for generation.
+    if not is_follow_up:
+        memory_used = False
 
     history.append({"role": "user", "content": user_message})
 
     if is_follow_up:
         # If it's a follow-up, rewrite it to be a standalone query for better searching.
-        search_query = rewrite_query(user_message, history[:-1])
+        try:
+            search_query = rewrite_query(user_message, history[:-1])
+        except Exception:
+            # Fallback: If rewrite fails (LLM error), use the original message.
+            search_query = user_message
+            
         history.append({"role": "Edited user", "content": search_query})
     else:
         # If it's a new topic, use the message directly. No rewrite needed.
@@ -105,11 +65,22 @@ def chat(req: ChatRequest) -> ChatResponse:
         # --- Case 1: A relevant FAQ was found. ---
         faq_question = relevant_faq.get("question", "No question found.")
         history.append({"role": "Matched FAQ", "content": f"Found: {faq_question}"})
-        sources = [f"{faq_question} (ID: {relevant_faq.get('id', 'Unknown ID')})"]
+        sources = [faq_question]
         
         # Generate a conversational answer using the LLM with the FAQ as context.
-        messages = build_messages(user_message, relevant_faq, history)
-        answer = call_llm(messages)
+        # Only include history if it is a follow-up; otherwise, treat it as a fresh query.
+        messages = build_messages(user_message, relevant_faq, history if is_follow_up else None)
+        
+        try:
+            answer = call_llm(messages)
+        except Exception:
+            # Fallback: If LLM generation fails, provide a safe fallback using the retrieved data.
+            answer = f"I found a relevant FAQ, but I'm having trouble generating a conversational response right now. \n\n**Question:** {faq_question}\n**Answer:** {relevant_faq.get('answer', 'Please check the source link.')}"
+
+        # If it's not a follow-up, we can clear the history to avoid confusion in future interactions.
+        if not is_follow_up:
+            # Reset history to keep only the current turn (User, Edited User, Matched FAQ)
+            history = history[-3:]
     else:
         # --- Case 2: No relevant FAQ was found. ---
         history.append({"role": "Matched FAQ", "content": "No relevant FAQ found."})
@@ -120,12 +91,17 @@ def chat(req: ChatRequest) -> ChatResponse:
     history.append({"role": "assistant", "content": answer})
 
     # Limit history to prevent context overflow.
-    if len(history) > 20:
-        history = history[-20:]
+    if len(history) > MAX_HISTORY_LENGTH:
+        history = history[-MAX_HISTORY_LENGTH:]
 
     return ChatResponse(
         answer=answer,
         sources=sources,
+        url=relevant_faq.get("url", "") if relevant_faq else "",
         memory_used=memory_used,
         history=history
     )
+
+# Mount the parent directory to serve index.html, styles.css, and app.js
+# We place this at the end to ensure specific routes like /chat are matched first.
+app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "..", "frontend"), html=True), name="static")

@@ -43,7 +43,6 @@ def call_llm(messages, temperature=0.2):
         "You are a support assistant. "
         "Answer using the provided FAQ content or the conversation history. "
         "If the FAQ does not contain enough information, ask a clarifying question. "
-        "Always cite the source URL when answering."
     )
     
     model = genai.GenerativeModel(

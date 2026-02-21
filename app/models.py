@@ -7,5 +7,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str]
+    url: str
     memory_used: bool
     history: list[dict]
