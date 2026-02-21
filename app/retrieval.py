@@ -1,4 +1,4 @@
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
 from sklearn.metrics.pairwise import cosine_similarity
 from typing import Dict, List, Optional
 
@@ -13,9 +13,14 @@ class FAQRetriever:
         """
         self.faq_data = faq_data
 
+        # Create a custom stop word list that preserves question words
+        # This helps distinguish "Who is..." from "What is..."
+        question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whom', 'whose'}
+        custom_stop_words = list(ENGLISH_STOP_WORDS - question_words)
+
         # 1. Vectorizer for Questions (High priority)
         self.questions = [faq.get('question', '') for faq in self.faq_data]
-        self.question_vectorizer = TfidfVectorizer(stop_words='english')
+        self.question_vectorizer = TfidfVectorizer(stop_words=custom_stop_words)
         self.question_matrix = self.question_vectorizer.fit_transform(self.questions)
 
         # 2. Vectorizer for Answers (Fallback)

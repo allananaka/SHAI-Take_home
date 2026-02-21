@@ -33,6 +33,7 @@ def chat(req: ChatRequest):
     # Prepare for conversation history
     history = req.history
     history.append({"role": "user", "content": user_message})
+    history.append({"role": "Edited user", "content": search_query})
 
     if relevant_faq:
         faq_question = relevant_faq.get("question", "No question found.")
@@ -58,8 +59,8 @@ def chat(req: ChatRequest):
     history.append({"role": "assistant", "content": answer})
 
     # Limit history to the last 5 turns (15 messages) to prevent context overflow (each turn has 3 messages: user, matched FAQ, assistant)
-    if len(history) > 15:
-        history = history[-15:]
+    if len(history) > 20:
+        history = history[-20:]
 
     # 5. Return the response, including the updated history
     return ChatResponse(
