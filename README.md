@@ -76,14 +76,17 @@ TESTING.md
 ## 5. Local Setup Instructions
 
 ### Prerequisites
-- Python 3.9 or higher
+- Python 3.11 or higher
 
 ### Installation
 
 1. **Create and activate a virtual environment** (recommended):
    ```bash
    python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   # Mac/Linux
+   source venv/bin/activate
+   # Windows
+   venv\Scripts\activate
    ```
 
 2. **Install dependencies**:
@@ -92,12 +95,19 @@ TESTING.md
    pip install -r requirements.txt
    ```
 
+3. **Set up Environment Variables**:
+   - Create a file named `.env` in the root directory.
+   ```bash
+    cp .env.example .env
+    ```
+
 ## 6. Running the Application
 
 1. **Start the Backend Server**:
    ```bash
-   uvicorn app.main:app --reload
+   python3 -m uvicorn app.main:app --reload
    ```
+   Press Ctrl + C to stop the server
 
 2. **Launch the Frontend**:
    - Open your web browser and navigate to `http://127.0.0.1:8000`.

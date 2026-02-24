@@ -16,7 +16,7 @@ The test suite is implemented as a Python script that makes HTTP requests to the
 
 1. Start the FastAPI server (in one terminal):
 ```bash
-uvicorn app.main:app --reload
+python3 -m uvicorn app.main:app --reload
 ```
 
 2. Run the test script (in another terminal):
