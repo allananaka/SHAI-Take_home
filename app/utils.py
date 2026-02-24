@@ -2,7 +2,7 @@ from typing import List, Dict
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-def is_follow_up_question(user_input: str, history: List[Dict], threshold: float = 0.2) -> bool:
+def is_follow_up_question(user_input: str, history: List[Dict], threshold: float = 0.3) -> bool:
     """
     Checks if the user input is a semantic follow-up to the conversation history.
 

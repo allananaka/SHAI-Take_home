@@ -26,5 +26,61 @@
     "question": "What is Epic on FHIR?",
     "answer": "Epic on FHIR is the FHIR toolbox section of open.epic, Epic’s free online self-service interoperability resource.\n\nThrough Epic on FHIR, you can find documentation on how Epic has implemented the HL7 FHIR standard, test your FHIR-based interfaces in the self-service sandbox, and obtain client IDs and health systems' FHIR endpoints.\n\nIf you're interested in receiving direct support from Epic to design, test, deploy, maintain, and support an integration between your products and Epic software, then Vendor Services is the right resource for you!",
     "url": "https://vendorservices.epic.com/FAQ/Index?Question=1086&Category=1082"
+},
+{
+    "id": "faq_5",
+    "section": "Membership",
+    "question": "How do I enroll in Vendor Services?",
+    "answer": "To learn more about Vendor Services and to enroll, go to the registration page. Select the \"I'm Interested\" button at the bottom of the page and complete the registration form to get started. Epic's customer organizations are automatically provisioned accounts to the Vendor Services website.",
+    "url": "https://vendorservices.epic.com/FAQ/Index?Question=1075&Category=1083"
+},
+{
+    "id": "faq_6",
+    "section": "Membership",
+    "question": "How long does it take to set up an account after filling out the \"I'm Interested\" form?",
+    "answer": "Your account on the Vendor Services website is automatically created after submitting the \"I'm Interested\" form. You should receive an email that will allow you to log in to the site and begin reviewing our Program Details with a provisional account. You'll be able to agree to the Vendor Services terms 48 hours after downloading the Program Details. If we have any questions about your organization or account, we may reach out to you during the enrollment process. The whole process can be relatively quick, but may take more time if additional information is needed from your organization. If you have any questions about this process, reach out to us using the \"Contact\" form at the bottom of this page in the website footer.",
+    "url": "https://vendorservices.epic.com/FAQ/Index?Question=1278&Category=1083"
+},
+{
+    "id": "faq_7",
+    "section": "Membership",
+    "question": "How much does it cost to subscribe to Vendor Services?",
+    "answer": "Vendor Services pricing starts at $1,900 per year for vendors. For full pricing information, log in or complete the registration form to get started.",
+    "url": "https://vendorservices.epic.com/FAQ/Index?Question=1076&Category=1083"
+},
+{
+    "id": "faq_8",
+    "section": "Membership",
+    "question": "Does Vendor Services offer a trial period?",
+    "answer": "Yes, we offer developers subscribed to Vendor Services a three-month trial period. If you notify us that you would like to cancel your membership within the first three months, then we will refund your annual fee less any used support services or other outstanding amounts.",
+    "url": "https://vendorservices.epic.com/FAQ/Index?Question=1086&Category=1082"
+},
+{
+    "id": "faq_9",
+    "section": "Website Assistance",
+    "question": "How do I get a Vendor Services user account?",
+    "answer": "If you work for one of Epic's customers, you log in using your UserWeb account. If you do not have a UserWeb account yet, you may register here. If your company has not yet enrolled in Vendor Services, begin the enrollment process to get started. If your company has already enrolled in Vendor Services, your company's admin user provisions user accounts to your staff. If you're unsure who your admin user is, fill out the registration form using your work email address to send a request to your admin user.",
+    "url": "https://vendorservices.epic.com/FAQ/Index?Question=1119&Category=1087"
+},
+{
+    "id": "faq_10",
+    "section": "Website Assistance",
+    "question": "How do I log in to the Vendor Services website?",
+    "answer": "If you work for an organization that participates in Vendor Services and you have already been provisioned a Vendor Services user account, then select Vendor Services from the Login menu and enter your Vendor Services credentials. If you work for one of Epic's customers, you log in using your UserWeb account. Select UserWeb from the Login menu and enter your credentials if requested. If your organization uses UserWeb single-sign on, then you'll use your Windows username and password if prompted.",
+    "url": "https://vendorservices.epic.com/FAQ/Index?Question=1086&Category=1082"
+},
+{
+    "id": "faq_11",
+    "section": "Website Assistance",
+    "question": "I'm having trouble logging into the Vendor Services website. What do I do?",
+    "answer": "If you work for a Vendor Services participant or prospective participant and have already been provisioned a Vendor Services user account, then select Vendor Services from the Login menu. Then select \"Forgot username or password\". If you still have difficulty accessing your account, contact a Vendor Services TS or use the \"Contact\" form located at the bottom of this page in the website footer for assistance. If you work for one of Epic's customers, you log into the Vendor Services website using your UserWeb account. If your organization uses UserWeb single-sign on, then follow your organization's process for resetting your Windows username and password. Otherwise, go to the UserWeb login page and select \"Forgot username or password\" for instructions. If you still have difficulty accessing your account, staff from Epic customers should contact UserWeb Support. Staff from Vendor Services members should contact vendorservices@epic.com.",
+    "url": "https://vendorservices.epic.com/FAQ/Index?Question=1121&Category=1087"
+},
+{
+    "id": "faq_12",
+    "section": "Design, Technical, & Install Support",
+    "question": "What design assistance is offered through Vendor Services?",
+    "answer": "A subscription to Vendor Services offers a few paths for design assistance: Design-centric resources and documentation; Testing tools to assist with on-the-fly testing during the design and development phase; Workflow and integration design expertise and direct support from Vendor Services TS",
+    "url": "https://vendorservices.epic.com/FAQ/Index?Question=1086&Category=1082"
 }
 ]

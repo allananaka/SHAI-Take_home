@@ -3,14 +3,14 @@ from fastapi.staticfiles import StaticFiles
 import json
 import os
 from dotenv import load_dotenv
-
-# Load environment variables from a .env file
 load_dotenv()
-
 from .retrieval import FAQRetriever
 from .models import ChatRequest, ChatResponse
 from .response import build_messages, call_llm, rewrite_query
 from .utils import is_follow_up_question
+from .mock import call_mock_llm
+
+USE_MOCK_GEMINI = os.getenv("USE_MOCK_GEMINI", "false").lower() == "true"
 
 # Load the FAQ data from the JSON file
 FAQ_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "SEED_DATA", "epic_vendor_faq.json")
@@ -30,18 +30,27 @@ def chat(req: ChatRequest) -> ChatResponse:
     # Extract the user's message and conversation history from the request
     user_message = req.message
     history = req.history
-    memory_used = bool(history)
+
+    # Handle empty or whitespace-only input gracefully.
+    if not user_message or not user_message.strip():
+        return ChatResponse(
+            answer="It looks like you sent an empty message. Please type a question to get started.",
+            sources=[],
+            url="",
+            memory_used=False,
+            history=history  # Return original history
+        )
     
     # Determine if the input is a follow-up before doing anything else.
     is_follow_up = is_follow_up_question(user_message, history)
     
-    # If it is not a follow-up, we treat it as a new conversation, so memory is not used for generation.
-    if not is_follow_up:
-        memory_used = False
+    # The `memory_used` flag should reflect if this is a follow-up turn.
+    # If it's not a follow-up, we are starting a new context, so memory from the prior turn is not used.
+    memory_used = is_follow_up
 
     history.append({"role": "user", "content": user_message})
 
-    if is_follow_up:
+    if is_follow_up and not USE_MOCK_GEMINI:
         # If it's a follow-up, rewrite it to be a standalone query for better searching.
         try:
             search_query = rewrite_query(user_message, history[:-1])
@@ -53,7 +62,10 @@ def chat(req: ChatRequest) -> ChatResponse:
     else:
         # If it's a new topic, use the message directly. No rewrite needed.
         search_query = user_message
-        history.append({"role": "Edited user", "content": "No rewrite needed"})
+        if USE_MOCK_GEMINI:
+            history.append({"role": "Edited user", "content": "No rewrite needed (mock mode)"})
+        else:
+            history.append({"role": "Edited user", "content": "No rewrite needed"})
 
     # Now, retrieve the FAQ using the determined search_query.
     relevant_faq = retriever.find_best_match(search_query)
@@ -61,7 +73,21 @@ def chat(req: ChatRequest) -> ChatResponse:
     answer = ""
     sources = []
 
-    if relevant_faq:
+    if USE_MOCK_GEMINI:
+        # Mock response for testing without calling the actual Gemini API
+        if relevant_faq:
+            faq_question = relevant_faq.get("question", "No question found.")
+            history.append({"role": "Matched FAQ", "content": f"Found: {faq_question}"})
+            sources = [faq_question]
+        else:
+            history.append({"role": "Matched FAQ", "content": "No relevant FAQ found."})
+            sources = []
+            
+        answer = call_mock_llm(relevant_faq, is_follow_up=is_follow_up)
+
+        if not is_follow_up:
+            history = history[-3:]
+    elif relevant_faq:
         # --- Case 1: A relevant FAQ was found. ---
         faq_question = relevant_faq.get("question", "No question found.")
         history.append({"role": "Matched FAQ", "content": f"Found: {faq_question}"})
@@ -70,7 +96,6 @@ def chat(req: ChatRequest) -> ChatResponse:
         # Generate a conversational answer using the LLM with the FAQ as context.
         # Only include history if it is a follow-up; otherwise, treat it as a fresh query.
         messages = build_messages(user_message, relevant_faq, history if is_follow_up else None)
-        
         try:
             answer = call_llm(messages)
         except Exception:
