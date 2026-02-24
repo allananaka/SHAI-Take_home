@@ -76,12 +76,13 @@ TESTING.md
 ## 5. Local Setup Instructions
 
 ### Prerequisites
-- Python 3.11 or higher
+- Python 3.11-3.13 (NOTE: older versions of python and 3.14 may not work with dependencies)
 
 ### Installation
 
 1. **Create and activate a virtual environment** (recommended):
    ```bash
+   cd "SHAI take home"
    python3 -m venv venv
    # Mac/Linux
    source venv/bin/activate
@@ -103,13 +104,22 @@ TESTING.md
 
 ## 6. Running the Application
 
-1. **Start the Backend Server**:
+1. **Activate Virtual Environment**
+   (Assuming we aren't already in the virtual environment, if so skip)
+   ```bash
+    # Mac/Linux
+   source venv/bin/activate
+   # Windows
+   venv\Scripts\activate or venv/Scripts/activate
+   ```
+
+2. **Start the Backend Server**:
    ```bash
    python3 -m uvicorn app.main:app --reload
    ```
    Press Ctrl + C to stop the server
 
-2. **Launch the Frontend**:
+3. **Launch the Frontend**:
    - Open your web browser and navigate to `http://127.0.0.1:8000`.
 
 ## 7. Running Tests
@@ -127,7 +137,8 @@ The mock LLM produces **deterministic, controlled outputs**, which makes it poss
 
 In a real-world deployment, a **real LLM (e.g., Google Gemini)** can be enabled to provide more natural, conversational, and user-authentic responses. Importantly, switching to a real LLM does **not change the underlying system logic**: retrieval, memory handling, routing decisions, and grounding behavior remain the same. The LLM is used purely to enhance response phrasing and conversational quality.
 
-Tests are written against the mock LLM’s deterministic outputs to ensure consistent validation of system functionality, independent of LLM variability. However, system was also designed with real LLM use in mind.
+Tests are written against the mock LLM’s deterministic outputs to ensure consistent validation of system functionality, independent of LLM variability. However, system was also designed with real LLM use in mind. Certain features, specifically rewording user input with context before FAQ retrieval, are only functional with a real LLM.
+
 
 ## 9. Tradeoffs and Future Work
 
