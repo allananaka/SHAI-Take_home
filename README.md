@@ -88,6 +88,7 @@ TESTING.md
 
 2. **Install dependencies**:
    ```bash
+   pip install --upgrade pip
    pip install -r requirements.txt
    ```
 
@@ -104,7 +105,7 @@ TESTING.md
 ## 7. Running Tests
 To verify the system logic and API behavior, ensure the backend is running, then execute:
 ```bash
-python3 test_client.py
+python3 "tests/test_client.py"
 ```
 Testing outlined in TESTING.md
 

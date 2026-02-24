@@ -21,7 +21,7 @@ uvicorn app.main:app --reload
 
 2. Run the test script (in another terminal):
 ```bash
-python3 "test_client.py"
+python3 "tests/test_client.py"
 ```
 
 ## Testing Strategy Overview:
