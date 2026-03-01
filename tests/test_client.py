@@ -1,3 +1,5 @@
+import uuid
+
 import requests
 import json
 
@@ -20,7 +22,9 @@ def send_chat_message(message: str, history: list = []):
     Sends a message to the FastAPI chat endpoint and returns the full response.
     """
     url = f"{BASE_URL}/chat"
-    payload = {"message": message, "history": history}
+    id = str(uuid.uuid4())
+    print(f"    Request ID: {id}")
+    payload = {"message": message, "history": history, "requestID": id}
     
     try:
         response = requests.post(url, json=payload)

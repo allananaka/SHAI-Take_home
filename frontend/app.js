@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     message: messageText,
                     history: history,
+                    requestID: crypto.randomUUID()
                 }),
             });
 
