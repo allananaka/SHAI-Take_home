@@ -115,7 +115,7 @@ TESTING.md
 
 2. **Start the Backend Server**:
    ```bash
-   python3 -m uvicorn app.main:app --reload
+   pyton3 -m uvicorn app.main:app --reload
    ```
    Press Ctrl + C to stop the server
 
@@ -173,3 +173,4 @@ This project prioritizes correctness, clarity, and local portability within a li
 - **Future Work:** Evaluate more refined strategies for history management, such as relevance-based trimming or turn summarization.
 
 ---
+h

@@ -41,10 +41,17 @@ def chat(request: Request, req: ChatRequest) -> ChatResponse:
     user_message = req.message
     # Resolve history: use stored history for this conversation_id if present, else request history
     conversation_id = (req.conversation_id or "").strip()
+    logger.info("request_id=%s Current conversation_histories store: %s", request_id, conversation_histories)
+    
     if conversation_id and conversation_id in conversation_histories:
         history = list(conversation_histories[conversation_id])
+        logger.info("request_id=%s History recovered for conversation_id=%s", request_id, conversation_id)
     else:
         history = list(req.history) if req.history else []
+        if conversation_id:
+            logger.info("request_id=%s No history found for conversation_id=%s; creating new history", request_id, conversation_id)
+        else:
+            logger.info("request_id=%s No conversation_id provided; starting fresh history", request_id)
     logger.info("request_id=%s Received input: message=%s", request_id, (user_message or "")[:500] or "(empty)")
 
     # Handle empty or whitespace-only input gracefully.
@@ -63,7 +70,8 @@ def chat(request: Request, req: ChatRequest) -> ChatResponse:
     
     # The `memory_used` flag should reflect if this is a follow-up turn.
     # If it's not a follow-up, we are starting a new context, so memory from the prior turn is not used.
-    memory_used = is_follow_up
+    memory_used = bool(history)
+    
 
     history.append({"role": "user", "content": user_message})
 
@@ -107,7 +115,7 @@ def chat(request: Request, req: ChatRequest) -> ChatResponse:
         history.append({"role": "Matched FAQ", "content": "No relevant FAQ found."})
         try:
             answer = call_llm([
-                {"role": "user", "content": user_message}
+                {"role": "user", "parts": [{"text": user_message}]}
             ])
             logger.info("request_id=%s LLM call succeeded (no FAQ match).", request_id)
         except Exception:
@@ -121,11 +129,18 @@ def chat(request: Request, req: ChatRequest) -> ChatResponse:
                 pass  # if even this fails, use canned above
         sources = []    
     
-    history.append({"role": "assistant", "content": answer})
+    faq_url = relevant_faq.get("url", "") if relevant_faq else ""
+    history.append({
+        "role": "assistant",
+        "content": answer,
+        "sources": sources,
+        "url": faq_url,
+    })
 
     # Keep only the last 5 user/assistant turns.
     history = trim_history_to_last_n_turns(history, n=5)
 
+    logger.info("request_id=%s conversation_id=%s", request_id, conversation_id)
     if conversation_id:
         conversation_histories[conversation_id] = history
 
@@ -133,7 +148,7 @@ def chat(request: Request, req: ChatRequest) -> ChatResponse:
     return ChatResponse(
         answer=answer,
         sources=sources,
-        url=relevant_faq.get("url", "") if relevant_faq else "",
+        url=faq_url,
         memory_used=memory_used,
         history=history
     )

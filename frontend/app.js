@@ -5,13 +5,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageInput = document.getElementById('message-input');
     const sendButton = document.getElementById('send-button');
 
+    /**
+     * Generates a UUID string. Uses crypto.randomUUID() when available, otherwise a fallback.
+     * Ensures conversationId is always generated even in older browsers.
+     */
+    const generateUUID = () => {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/x/g, () =>
+            (Math.random() * 16 | 0).toString(16)
+        );
+    };
+
     // --- State ---
     const STORAGE_KEY = 'chat_conversation_id';
     let conversationId = localStorage.getItem(STORAGE_KEY);
     if (!conversationId || !conversationId.trim()) {
-        conversationId = crypto.randomUUID();
-        localStorage.setItem(STORAGE_KEY, conversationId);
+        conversationId = generateUUID();
+        try {
+            localStorage.setItem(STORAGE_KEY, conversationId);
+        } catch (e) {
+            // localStorage may be disabled (private mode, quota, etc.). Keep in-memory ID for this session.
+        }
     }
+    // Ensure we always have a non-empty string for this session
+    conversationId = (conversationId && String(conversationId).trim()) ? conversationId : generateUUID();
+    console.log('ConversationID (sent to backend):', conversationId, conversationId ? '(non-empty)' : '(empty)');
+
     let history = []; // The exact list you send to backend
     let uiMessages = []; // What you render, includes metadata for assistant messages
     const MAX_VISIBLE = 8; // Max messages to show in UI
@@ -113,6 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 4. Call backend
+            const conversationIdToSend = (conversationId && String(conversationId).trim()) ? conversationId : generateUUID();
+            console.log('Sending to backend — conversation_id:', conversationIdToSend, conversationIdToSend ? '(non-empty)' : '(empty)');
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
@@ -121,8 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     message: messageText,
                     history: history,
-                    requestID: crypto.randomUUID(),
-                    conversation_id: conversationId
+                    requestID: generateUUID(),
+                    conversation_id: conversationIdToSend
                 }),
             });
 
@@ -160,9 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         rehydrated.push({
                             role: 'assistant',
                             content: isLast ? data.answer : (e.content || ''),
-                            memory_used: isLast ? data.memory_used : false,
-                            sources: isLast ? (data.sources || []) : [],
-                            url: isLast ? (data.url || '') : ''
+                            memory_used: isLast ? data.memory_used : (e.memory_used === true),
+                            sources: isLast ? (data.sources || []) : (e.sources || []),
+                            url: isLast ? (data.url || '') : (e.url || '')
                         });
                     }
                 }

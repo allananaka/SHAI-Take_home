@@ -17,22 +17,21 @@ def build_messages(user_input, faq, history=None):
     messages = []
 
     # If you have history, format it as 'user' and 'model' pairs
+    # Gemini expects parts to be a list of Part objects: [{"text": "..."}]
     if history:
-        # History needs to be a list of dicts: {"role": "user"/"model", "parts": ["text"]}
-        # For now, let's assume we're adding it as a single context block
         messages.append({
             "role": "user",
-            "parts": [f"Previous conversation context: {history}"]
+            "parts": [{"text": f"Previous conversation context: {history}"}]
         })
         messages.append({
             "role": "model",
-            "parts": ["I have reviewed the history. How can I help with the FAQ?"]
+            "parts": [{"text": "I have reviewed the history. How can I help with the FAQ?"}]
         })
 
     # The final message combines the FAQ context and the user question
     messages.append({
         "role": "user",
-        "parts": [f"CONTEXT:\n{context_block}\n\nUSER QUESTION: {user_input}"]
+        "parts": [{"text": f"CONTEXT:\n{context_block}\n\nUSER QUESTION: {user_input}"}]
     })
 
     return messages
