@@ -6,6 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendButton = document.getElementById('send-button');
 
     // --- State ---
+    const STORAGE_KEY = 'chat_conversation_id';
+    let conversationId = localStorage.getItem(STORAGE_KEY);
+    if (!conversationId || !conversationId.trim()) {
+        conversationId = crypto.randomUUID();
+        localStorage.setItem(STORAGE_KEY, conversationId);
+    }
     let history = []; // The exact list you send to backend
     let uiMessages = []; // What you render, includes metadata for assistant messages
     const MAX_VISIBLE = 8; // Max messages to show in UI
@@ -115,7 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     message: messageText,
                     history: history,
-                    requestID: crypto.randomUUID()
+                    requestID: crypto.randomUUID(),
+                    conversation_id: conversationId
                 }),
             });
 
@@ -138,6 +145,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 6. Update backend history
             history = data.history;
+
+            // 7. Rehydrate uiMessages from history when backend returned more context (e.g. after refresh)
+            const assistantCountInHistory = (data.history || []).filter(e => e.role === 'assistant').length;
+            if (assistantCountInHistory > 1) {
+                const rehydrated = [];
+                const h = data.history || [];
+                for (let i = 0; i < h.length; i++) {
+                    const e = h[i];
+                    if (e.role === 'user') {
+                        rehydrated.push({ role: 'user', content: e.content || '' });
+                    } else if (e.role === 'assistant') {
+                        const isLast = i === h.length - 1;
+                        rehydrated.push({
+                            role: 'assistant',
+                            content: isLast ? data.answer : (e.content || ''),
+                            memory_used: isLast ? data.memory_used : false,
+                            sources: isLast ? (data.sources || []) : [],
+                            url: isLast ? (data.url || '') : ''
+                        });
+                    }
+                }
+                uiMessages = rehydrated;
+            }
 
         } catch (error) {
             console.error('Error fetching chat response:', error);

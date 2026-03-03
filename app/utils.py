@@ -47,3 +47,32 @@ def is_follow_up_question(user_input: str, history: List[Dict], threshold: float
 
     # Return True if the similarity score exceeds our defined threshold.
     return similarity_score > threshold
+
+
+def trim_history_to_last_n_turns(history: List[Dict], n: int = 5) -> List[Dict]:
+    """
+    Reduces history to the last n complete turns. A turn is: one "user" message
+    through the next "assistant" message (including any "Edited user" / "Matched FAQ" in between).
+    """
+    if n <= 0 or not history:
+        return []
+    # Collect (start_index, end_index) for each turn
+    turns: List[tuple] = []
+    i = 0
+    while i < len(history):
+        if history[i].get("role") == "user":
+            start = i
+            i += 1
+            while i < len(history):
+                if history[i].get("role") == "assistant":
+                    turns.append((start, i))
+                    i += 1
+                    break
+                i += 1
+        else:
+            i += 1
+    if not turns:
+        return history
+    keep = turns[-n:]
+    start_idx = keep[0][0]
+    return history[start_idx:]

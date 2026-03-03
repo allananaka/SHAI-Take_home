@@ -9,8 +9,11 @@ load_dotenv()
 from .retrieval import FAQRetriever
 from .models import ChatRequest, ChatResponse
 from .response import build_messages, call_llm, rewrite_query
-from .utils import is_follow_up_question
+from .utils import is_follow_up_question, trim_history_to_last_n_turns
 from .mock import call_mock_llm
+
+# In-memory store: conversation_id -> history list
+conversation_histories: dict[str, list[dict]] = {}
 
 USE_MOCK_GEMINI = os.getenv("USE_MOCK_GEMINI", "false").lower() == "true"
 
@@ -35,9 +38,13 @@ app = FastAPI()
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: Request, req: ChatRequest) -> ChatResponse:
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-    # Extract the user's message and conversation history from the request
     user_message = req.message
-    history = req.history
+    # Resolve history: use stored history for this conversation_id if present, else request history
+    conversation_id = (req.conversation_id or "").strip()
+    if conversation_id and conversation_id in conversation_histories:
+        history = list(conversation_histories[conversation_id])
+    else:
+        history = list(req.history) if req.history else []
     logger.info("request_id=%s Received input: message=%s", request_id, (user_message or "")[:500] or "(empty)")
 
     # Handle empty or whitespace-only input gracefully.
@@ -95,9 +102,6 @@ def chat(request: Request, req: ChatRequest) -> ChatResponse:
             # Fall back to deterministic mock LLM
             logger.info("request_id=%s LLM call failed, falling back to mock LLM (FAQ match).", request_id)
             answer = call_mock_llm(relevant_faq, is_follow_up=is_follow_up)
-        # If not a follow-up, trim the history
-        if not is_follow_up:
-            history = history[-3:]
     else:
         # No relevant FAQ found -- try LLM fallback, else use our canned response, else fallback to mock LLM
         history.append({"role": "Matched FAQ", "content": "No relevant FAQ found."})
@@ -115,13 +119,15 @@ def chat(request: Request, req: ChatRequest) -> ChatResponse:
                 answer = call_mock_llm(None, is_follow_up=is_follow_up)
             except Exception:
                 pass  # if even this fails, use canned above
-        sources = []
+        sources = []    
     
     history.append({"role": "assistant", "content": answer})
 
-    # Limit history to prevent context overflow.
-    if len(history) > MAX_HISTORY_LENGTH:
-        history = history[-MAX_HISTORY_LENGTH:]
+    # Keep only the last 5 user/assistant turns.
+    history = trim_history_to_last_n_turns(history, n=5)
+
+    if conversation_id:
+        conversation_histories[conversation_id] = history
 
     logger.info("request_id=%s Sending answer: %s", request_id, (answer or "")[:500] or "(empty)")
     return ChatResponse(

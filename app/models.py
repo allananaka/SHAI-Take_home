@@ -3,7 +3,8 @@ from pydantic import BaseModel
 class ChatRequest(BaseModel):
     message: str
     history: list[dict] = []
-    requestID: str = "" 
+    requestID: str = ""
+    conversation_id: str = "" 
 
 class ChatResponse(BaseModel):
     answer: str
