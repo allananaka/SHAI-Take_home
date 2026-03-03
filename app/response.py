@@ -61,6 +61,30 @@ def call_llm(messages, temperature=0.2):
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
         raise e
+def llm_grounded_clarification(user_input=None):
+    """
+    Call the LLM to generate a grounded response that asks the user for clarification or more context.
+    This should only prompt for clarification and avoid generating any specific factual information.
+    """
+    prompt = (
+        "You are a helpful support assistant. "
+        "A user asked a question, but you don't have enough information to provide a helpful answer. "
+        "Respond by politely asking the user for more context or clarification. "
+        "Do not provide any specific answer, and do not make up information."
+    )
+    if user_input:
+        prompt += f"\n\nUser's Question: {user_input}"
+
+    try:
+        model = genai.GenerativeModel(MODEL_NAME)
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Error generating clarification response: {e}")
+        # Fall back to static generic response if LLM fails
+        return ("I'm sorry, I need a bit more context before I can help. "
+                "Could you clarify your question or provide more details?")
+
 
 def rewrite_query(user_input, history):
     """

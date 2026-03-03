@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 import json
+import logging
 import os
+import uuid
 from dotenv import load_dotenv
 load_dotenv()
 from .retrieval import FAQRetriever
@@ -11,6 +13,9 @@ from .utils import is_follow_up_question
 from .mock import call_mock_llm
 
 USE_MOCK_GEMINI = os.getenv("USE_MOCK_GEMINI", "false").lower() == "true"
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load the FAQ data from the JSON file
 FAQ_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "SEED_DATA", "epic_vendor_faq.json")
@@ -23,16 +28,21 @@ retriever = FAQRetriever(faq_data)
 # Define a constant for the maximum history length
 MAX_HISTORY_LENGTH = 20
 
+
+
 app = FastAPI()
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+def chat(request: Request, req: ChatRequest) -> ChatResponse:
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     # Extract the user's message and conversation history from the request
     user_message = req.message
     history = req.history
+    logger.info("request_id=%s Received input: message=%s", request_id, (user_message or "")[:500] or "(empty)")
 
     # Handle empty or whitespace-only input gracefully.
     if not user_message or not user_message.strip():
+        logger.info("request_id=%s Sending answer: (empty message response)", request_id)
         return ChatResponse(
             answer="It looks like you sent an empty message. Please type a question to get started.",
             sources=[],
@@ -72,46 +82,40 @@ def chat(req: ChatRequest) -> ChatResponse:
     
     answer = ""
     sources = []
-
-    if USE_MOCK_GEMINI:
-        # Mock response for testing without calling the actual Gemini API
-        if relevant_faq:
-            faq_question = relevant_faq.get("question", "No question found.")
-            history.append({"role": "Matched FAQ", "content": f"Found: {faq_question}"})
-            sources = [faq_question]
-        else:
-            history.append({"role": "Matched FAQ", "content": "No relevant FAQ found."})
-            sources = []
-            
-        answer = call_mock_llm(relevant_faq, is_follow_up=is_follow_up)
-
-        if not is_follow_up:
-            history = history[-3:]
-    elif relevant_faq:
-        # --- Case 1: A relevant FAQ was found. ---
+    if relevant_faq:
+        # If there is a relevant FAQ, try the real LLM first, fallback to mock LLM if it fails
         faq_question = relevant_faq.get("question", "No question found.")
         history.append({"role": "Matched FAQ", "content": f"Found: {faq_question}"})
         sources = [faq_question]
-        
-        # Generate a conversational answer using the LLM with the FAQ as context.
-        # Only include history if it is a follow-up; otherwise, treat it as a fresh query.
         messages = build_messages(user_message, relevant_faq, history if is_follow_up else None)
         try:
             answer = call_llm(messages)
+            logger.info("request_id=%s LLM call succeeded (FAQ match).", request_id)
         except Exception:
-            # Fallback: If LLM generation fails, provide a safe fallback using the retrieved data.
-            answer = f"I found a relevant FAQ, but I'm having trouble generating a conversational response right now. \n\n**Question:** {faq_question}\n**Answer:** {relevant_faq.get('answer', 'Please check the source link.')}"
-
-        # If it's not a follow-up, we can clear the history to avoid confusion in future interactions.
+            # Fall back to deterministic mock LLM
+            logger.info("request_id=%s LLM call failed, falling back to mock LLM (FAQ match).", request_id)
+            answer = call_mock_llm(relevant_faq, is_follow_up=is_follow_up)
+        # If not a follow-up, trim the history
         if not is_follow_up:
-            # Reset history to keep only the current turn (User, Edited User, Matched FAQ)
             history = history[-3:]
     else:
-        # --- Case 2: No relevant FAQ was found. ---
+        # No relevant FAQ found -- try LLM fallback, else use our canned response, else fallback to mock LLM
         history.append({"role": "Matched FAQ", "content": "No relevant FAQ found."})
-        
-        # Fallback for when no FAQ is found
-        answer = "I'm sorry, I'm not sure how to help with that. Could you please rephrase your question or ask about a new topic?"
+        try:
+            answer = call_llm([
+                {"role": "user", "content": user_message}
+            ])
+            logger.info("request_id=%s LLM call succeeded (no FAQ match).", request_id)
+        except Exception:
+            # Fallback: canned not-found answer
+            logger.info("request_id=%s LLM call failed, falling back to mock LLM (no FAQ match).", request_id)
+            answer = "I'm sorry, I'm not sure how to help with that. Could you please rephrase your question or ask about a new topic?"
+            # As a final fallback, call mock LLM with None
+            try:
+                answer = call_mock_llm(None, is_follow_up=is_follow_up)
+            except Exception:
+                pass  # if even this fails, use canned above
+        sources = []
     
     history.append({"role": "assistant", "content": answer})
 
@@ -119,6 +123,7 @@ def chat(req: ChatRequest) -> ChatResponse:
     if len(history) > MAX_HISTORY_LENGTH:
         history = history[-MAX_HISTORY_LENGTH:]
 
+    logger.info("request_id=%s Sending answer: %s", request_id, (answer or "")[:500] or "(empty)")
     return ChatResponse(
         answer=answer,
         sources=sources,
